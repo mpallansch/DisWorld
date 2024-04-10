@@ -1,0 +1,5 @@
+node_modules/
+db/*.db
+constants/config.js
+logs/*
+!logs/.gitkeep

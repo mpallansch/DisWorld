@@ -1,0 +1,9 @@
+{
+	"name": "disworld",
+	"version": "0.0.1",
+	"private": true,
+	"dependencies": {
+		"discord.js": "^12.5.1",
+		"sqlite3": "^5.0.1"
+	}
+}
