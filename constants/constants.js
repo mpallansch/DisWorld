@@ -1,3 +1,5 @@
 export default {
-  botUsername: 'DisWorld'
+  botUsername: 'DisWorld',
+  pinSize: 8,
+  halfPinSize: 4
 };

@@ -1,6 +1,5 @@
 import { geoMercator, geoPath } from 'd3-geo';
 import { feature } from 'topojson-client';
-import fs from 'fs';
 import { Client, GatewayIntentBits, AttachmentBuilder } from 'discord.js';
 import Canvas from '@napi-rs/canvas';
 import sqlite3 from 'sqlite3';
@@ -19,9 +18,6 @@ const client = new Client({ intents: [
 ] });
 
 const worldMapFeatures = feature(topoJSON, topoJSON.objects.countries).features;
-
-const pinSize = 8;
-const halfPinSize = pinSize / 2;
 
 let tablesInitialized = 0;
 let clientConnected = false;
@@ -111,10 +107,9 @@ const renderMap = async (locations) => {
 
   if(locations){
     Object.keys(locations).forEach((username, i) => {
-      const gaLatLong = [32.1574, -82.9071];
-      const gaPosition = projection([gaLatLong[1], gaLatLong[0]]);
+      const coords = projection([locations[username][1], locations[username][0]]);
       context.fillStyle = 'red';
-      context.fillRect(gaPosition[0] - halfPinSize, gaPosition[1] - halfPinSize, pinSize, pinSize);
+      context.fillRect(coords[0] - constants.halfPinSize, coords[1] - constants.halfPinSize, constants.pinSize, constants.pinSize);
     });
   }
 
@@ -159,30 +154,44 @@ client.on('messageCreate', async (msg) => {
   } else if(mapChannelIds[msg.channel.id]) {
     msg.delete();
 
-    db.all(sqlCommands.Locations.select.byChannelAndUser, [msg.channel.id, msg.author.username], async (err, rows) => {
-      if(err){
-        return console.log('Error checking if location is duplicate')
+    const response = await fetch(`${config.radarApiRoot}?query=${encodeURIComponent(msg.content)}&layers=address`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': config.radarApiAuthorization
       }
-
-      db.run(
-        rows.length === 0 ? sqlCommands.Locations.insert : sqlCommands.Locations.update, 
-        rows.length === 0 ? [msg.channel.id, msg.author.username, msg.content] : [msg.content, msg.channel.id, msg.author.username],
-        async (err) => {
-          if(err){
-            return console.log('Error adding location to database', err);
-          }
-    
-          mapChannelIds[msg.channel.id].locations[msg.author.username] = msg.content;
-    
-          msg.channel.messages.fetch(mapChannelIds[msg.channel.id].message).then(async (msg) => {
-            msg.edit({ files: [await renderMap(mapChannelIds[msg.channel.id].locations)] }).catch((err) => {
-              console.log('Error editing message', err);
-            })
-          }).catch((err) => {
-            console.log('Error finding message', err);
-          });
-      });
     });
+
+    const jsonData = await response.json();
+
+    if(jsonData && jsonData.addresses && jsonData.addresses.length > 0) {
+      const latitude = jsonData.addresses[0].latitude;
+      const longitude = jsonData.addresses[0].longitude;
+
+      db.all(sqlCommands.Locations.select.byChannelAndUser, [msg.channel.id, msg.author.username], async (err, rows) => {
+        if(err){
+          return console.log('Error checking if location is duplicate')
+        }
+  
+        db.run(
+          rows.length === 0 ? sqlCommands.Locations.insert : sqlCommands.Locations.update, 
+          rows.length === 0 ? [msg.channel.id, msg.author.username, latitude, longitude] : [latitude, longitude, msg.channel.id, msg.author.username],
+          async (err) => {
+            if(err){
+              return console.log('Error adding location to database', err);
+            }
+      
+            mapChannelIds[msg.channel.id].locations[msg.author.username] = [latitude, longitude];
+      
+            msg.channel.messages.fetch(mapChannelIds[msg.channel.id].message).then(async (msg) => {
+              msg.edit({ files: [await renderMap(mapChannelIds[msg.channel.id].locations)] }).catch((err) => {
+                console.log('Error editing message', err);
+              })
+            }).catch((err) => {
+              console.log('Error finding message', err);
+            });
+        });
+      });
+    }
   }
 });
  

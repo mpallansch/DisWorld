@@ -15,14 +15,15 @@ export default {
     create: `CREATE TABLE IF NOT EXISTS Locations(
       channelId TEXT NOT NULL,
       userId TEXT NOT NULL,
-      locationText TEXT NOT NULL
+      latitude REAL NOT NULL,
+      longitude REAL NOT NULL
     )`,
-    insert: 'INSERT INTO Locations(channelId, userId, locationText) VALUES(?, ?, ?)',
+    insert: 'INSERT INTO Locations(channelId, userId, latitude, longitude) VALUES(?, ?, ?, ?)',
     select: {
       all: 'SELECT * FROM Locations',
       byChannelAndUser: 'SELECT * FROM Locations WHERE channelId = ? AND userId = ?'
     },
-    update: 'UPDATE Locations SET locationText = ? WHERE channelId = ? AND userId = ?',
+    update: 'UPDATE Locations SET latitude = ?, longitude = ? WHERE channelId = ? AND userId = ?',
     delete: 'DELETE FROM Locations WHERE channelId = ?'
   }
 };
