@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   Maps: {
     create: `CREATE TABLE IF NOT EXISTS Maps(
       channelId TEXT NOT NULL,

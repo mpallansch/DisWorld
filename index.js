@@ -1,11 +1,15 @@
-const config = require('./constants/config.js');
-const constants = require('./constants/constants.js');
-const sqlCommands = require('./constants/sqlcommands.js');
+import { geoMercator, geoPath } from 'd3-geo';
+import { feature } from 'topojson-client';
+import fs from 'fs';
+import { Client, GatewayIntentBits, AttachmentBuilder } from 'discord.js';
+import Canvas from '@napi-rs/canvas';
+import sqlite3 from 'sqlite3';
 
-const fs = require('fs');
-const { Client, GatewayIntentBits, AttachmentBuilder } = require('discord.js');
-const Canvas = require('@napi-rs/canvas');
-const sqlite3 = require('sqlite3').verbose();
+import config from './constants/config.js';
+import constants from './constants/constants.js';
+import sqlCommands from './constants/sqlcommands.js';
+import topoJSON from './geo/world-topo.json' assert { type: 'json' };
+
 const client = new Client({ intents: [
   GatewayIntentBits.DirectMessages,
   GatewayIntentBits.Guilds,
@@ -13,6 +17,11 @@ const client = new Client({ intents: [
   GatewayIntentBits.GuildMessages,
   GatewayIntentBits.MessageContent
 ] });
+
+const worldMapFeatures = feature(topoJSON, topoJSON.objects.countries).features;
+
+const pinSize = 8;
+const halfPinSize = pinSize / 2;
 
 let tablesInitialized = 0;
 let clientConnected = false;
@@ -82,16 +91,30 @@ const db = new sqlite3.Database(config.dbPath, sqlite3.OPEN_READWRITE | sqlite3.
 });
 
 const renderMap = async (locations) => {
-  const canvas = Canvas.createCanvas(700, 250);
+  const canvas = Canvas.createCanvas(850, 550);
   const context = canvas.getContext('2d');
+  const projection = geoMercator();
+  projection.scale(canvas.width / 6.25).translate([canvas.width / 2, canvas.height * .65])
+  const path = geoPath(projection, context);
 
   context.fillStyle = 'white';
-  context.fillRect(0, 0, 700, 250);
-  context.fillStyle = 'black';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.fillStyle = 'grey';
+  context.strokeStyle = 'black';
+  worldMapFeatures.forEach(geo => {
+    context.beginPath()
+    path(geo)
+    context.fill()
+    context.stroke()
+  })
 
   if(locations){
     Object.keys(locations).forEach((username, i) => {
-      context.fillText(locations[username], 10, 10 + (i * 30));
+      const gaLatLong = [32.1574, -82.9071];
+      const gaPosition = projection([gaLatLong[1], gaLatLong[0]]);
+      context.fillStyle = 'red';
+      context.fillRect(gaPosition[0] - halfPinSize, gaPosition[1] - halfPinSize, pinSize, pinSize);
     });
   }
 

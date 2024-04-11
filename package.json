@@ -2,9 +2,13 @@
 	"name": "disworld",
 	"version": "0.0.1",
 	"private": true,
+	"type": "module",
 	"dependencies": {
 		"@napi-rs/canvas": "^0.1.51",
+		"d3": "^7.9.0",
+		"d3-geo": "^3.1.1",
 		"discord.js": "^14.14.1",
-		"sqlite3": "^5.0.1"
+		"sqlite3": "^5.0.1",
+		"topojson-client": "^3.1.0"
 	}
 }
