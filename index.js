@@ -14,6 +14,7 @@ const client = new Client({ intents: [
   GatewayIntentBits.MessageContent
 ] });
 
+let tablesInitialized = 0;
 let clientConnected = false;
 let dbConnected = false;
 let mapChannelIds = {};
@@ -80,14 +81,19 @@ const db = new sqlite3.Database(config.dbPath, sqlite3.OPEN_READWRITE | sqlite3.
   initialize();
 });
 
-const renderMap = async () => {
+const renderMap = async (locations) => {
   const canvas = Canvas.createCanvas(700, 250);
   const context = canvas.getContext('2d');
 
   context.fillStyle = 'white';
   context.fillRect(0, 0, 700, 250);
   context.fillStyle = 'black';
-  context.fillText('Here', 10, 10);
+
+  if(locations){
+    Object.keys(locations).forEach((username, i) => {
+      context.fillText(locations[username], 10, 10 + (i * 30));
+    });
+  }
 
   const encodedImage = await canvas.encode('png');
 
@@ -105,16 +111,15 @@ client.on('ready', () => {
  
 client.on('messageCreate', async (msg) => {
   if (msg.content.search(/!disworld($| )/) === 0) {
-    //Delete the users message from the channel
     msg.delete();
 
-    db.all(sqlCommands.Maps.select.byChannelId, [msg.channel.id] (err, rows) => {
+    db.all(sqlCommands.Maps.select.byChannelId, [msg.channel.id], async (err, rows) => {
       if(err) {
         return console.log('Error loading maps from database', err);
       }
   
       if(rows.length === 0){
-        msg.channel.send({ files: [renderMap()] }).then((mapMessage => {
+        msg.channel.send({ files: [await renderMap()] }).then((mapMessage => {
           db.run(sqlCommands.Maps.insert, [msg.channel.id, mapMessage.id], (err) => {
             if(err){
               return console.log('Error adding map to database', err);
@@ -129,19 +134,30 @@ client.on('messageCreate', async (msg) => {
       }
     });
   } else if(mapChannelIds[msg.channel.id]) {
-    console.log(msg.user.id);
-    //TODO check if no locations already exist for user 
-    db.run(sqlCommands.Locations.insert, [msg.channel.id, msg.user.id, msg.content], (err) => {
+    msg.delete();
+
+    db.all(sqlCommands.Locations.select.byChannelAndUser, [msg.channel.id, msg.author.username], async (err, rows) => {
       if(err){
-        return console.log('Error adding location to database', err);
+        return console.log('Error checking if location is duplicate')
       }
 
-      mapChannelIds[msg.channel.id].locations[msg.user.id] = msg.content;
-
-      channel.messages.fetch(mapChannelIds[msg.channel.id].message).then((msg) => {
-        //TODO update message with renderMap()
-      }).catch(() => {
-        //TODO handle this fail
+      db.run(
+        rows.length === 0 ? sqlCommands.Locations.insert : sqlCommands.Locations.update, 
+        rows.length === 0 ? [msg.channel.id, msg.author.username, msg.content] : [msg.content, msg.channel.id, msg.author.username],
+        async (err) => {
+          if(err){
+            return console.log('Error adding location to database', err);
+          }
+    
+          mapChannelIds[msg.channel.id].locations[msg.author.username] = msg.content;
+    
+          msg.channel.messages.fetch(mapChannelIds[msg.channel.id].message).then(async (msg) => {
+            msg.edit({ files: [await renderMap(mapChannelIds[msg.channel.id].locations)] }).catch((err) => {
+              console.log('Error editing message', err);
+            })
+          }).catch((err) => {
+            console.log('Error finding message', err);
+          });
       });
     });
   }

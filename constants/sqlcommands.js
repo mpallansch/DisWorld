@@ -20,9 +20,9 @@ module.exports = {
     insert: 'INSERT INTO Locations(channelId, userId, locationText) VALUES(?, ?, ?)',
     select: {
       all: 'SELECT * FROM Locations',
-      byChannelId: 'SELECT * FROM Locations WHERE channelId = ?'
+      byChannelAndUser: 'SELECT * FROM Locations WHERE channelId = ? AND userId = ?'
     },
-    update: 'UPDATE Locations SET locationText = ? WHERE channelId = ? AND userId = ?'
+    update: 'UPDATE Locations SET locationText = ? WHERE channelId = ? AND userId = ?',
     delete: 'DELETE FROM Locations WHERE channelId = ?'
   }
 };
