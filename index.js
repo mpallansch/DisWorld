@@ -9,6 +9,12 @@ import constants from './constants/constants.js';
 import sqlCommands from './constants/sqlcommands.js';
 import topoJSON from './geo/world-topo.json' assert { type: 'json' };
 
+import fs from 'fs';
+
+const pinImgData = fs.readFileSync('./assets/pin.png');
+const pinImg = new Canvas.Image();
+pinImg.src = pinImgData;
+
 const client = new Client({ intents: [
   GatewayIntentBits.DirectMessages,
   GatewayIntentBits.Guilds,
@@ -93,10 +99,10 @@ const renderMap = async (locations) => {
   projection.scale(canvas.width / 6.25).translate([canvas.width / 2, canvas.height * .65])
   const path = geoPath(projection, context);
 
-  context.fillStyle = 'white';
+  context.fillStyle = 'lightblue';
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  context.fillStyle = 'grey';
+  context.fillStyle = 'lightgray';
   context.strokeStyle = 'black';
   worldMapFeatures.forEach(geo => {
     context.beginPath()
@@ -108,8 +114,7 @@ const renderMap = async (locations) => {
   if(locations){
     Object.keys(locations).forEach((username, i) => {
       const coords = projection([locations[username][1], locations[username][0]]);
-      context.fillStyle = 'red';
-      context.fillRect(coords[0] - constants.halfPinSize, coords[1] - constants.halfPinSize, constants.pinSize, constants.pinSize);
+      context.drawImage(pinImg, coords[0] - constants.halfPinWidth, coords[1] - constants.pinHeight, constants.pinWidth, constants.pinHeight);
     });
   }
 

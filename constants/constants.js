@@ -1,5 +1,6 @@
 export default {
   botUsername: 'DisWorld',
-  pinSize: 8,
-  halfPinSize: 4
+  pinWidth: 14,
+  pinHeight: 20,
+  halfPinWidth: 7
 };
