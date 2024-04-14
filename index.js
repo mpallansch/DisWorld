@@ -136,26 +136,79 @@ client.on('messageCreate', async (msg) => {
   if (msg.content.search(/!disworld($| )/) === 0) {
     msg.delete();
 
-    db.all(sqlCommands.Maps.select.byChannelId, [msg.channel.id], async (err, rows) => {
-      if(err) {
-        return console.log('Error loading maps from database', err);
-      }
-  
-      if(rows.length === 0){
-        msg.channel.send({ files: [await renderMap()] }).then((mapMessage => {
-          db.run(sqlCommands.Maps.insert, [msg.channel.id, mapMessage.id], (err) => {
-            if(err){
-              return console.log('Error adding map to database', err);
+    const params = msg.content.split(' ');
+    if(params.length > 1){
+      switch(params[1]){
+        case 'init':
+          db.all(sqlCommands.Maps.select.byChannelId, [msg.channel.id], async (err, rows) => {
+            if(err) {
+              return console.log('Error loading maps from database', err);
             }
-
-            mapChannelIds[msg.channel.id] = {
-              message: mapMessage.id,
-              locations: {}
+        
+            if(rows.length === 0){
+              msg.channel.send({ files: [await renderMap()] }).then((mapMessage => {
+                db.run(sqlCommands.Maps.insert, [msg.channel.id, mapMessage.id], (err) => {
+                  if(err){
+                    return console.log('Error adding map to database', err);
+                  }
+    
+                  mapChannelIds[msg.channel.id] = {
+                    message: mapMessage.id,
+                    locations: {}
+                  }
+                });
+              }));
             }
           });
-        }));
+          break;
+        case 'remove':
+          db.all(sqlCommands.Maps.select.byChannelId, [msg.channel.id], async (err, rows) => {
+            if(err) {
+              return console.log('Error loading maps from database', err);
+            }
+        
+            if(rows.length > 0){
+              msg.channel.messages.fetch(rows[0].messageId).then(async (msg) => {
+                msg.delete();
+              }).catch((err) => {
+                console.log('Error finding message', err);
+              });
+
+              delete mapChannelIds[msg.channel.id];
+              db.run(sqlCommands.Maps.delete, [msg.channel.id], (err) => {
+                if(err){
+                  return console.log('Error deleting map from database', err);
+                }
+              });
+              db.run(sqlCommands.Locations.delete.all, [msg.channel.id], (err) => {
+                if(err){
+                  return console.log('Error deleting locations from database', err);
+                }
+              });
+            }
+          });
+          break;
+        case 'clear':
+          db.run(sqlCommands.Locations.delete.one, [msg.channel.id, msg.author.username], (err) => {
+            if(err){
+              console.log('Error deleting location from database', err)
+            }
+          })
+          if(mapChannelIds[msg.channel.id] && mapChannelIds[msg.channel.id].locations && mapChannelIds[msg.channel.id].locations[msg.author.username]){
+            delete mapChannelIds[msg.channel.id].locations[msg.author.username];
+
+            msg.channel.messages.fetch(mapChannelIds[msg.channel.id].message).then(async (msg) => {
+              msg.edit({ files: [await renderMap(mapChannelIds[msg.channel.id].locations)] }).catch((err) => {
+                console.log('Error editing message', err);
+              })
+            }).catch((err) => {
+              console.log('Error finding message', err);
+            });
+          }
+        
+          break;
       }
-    });
+    }
   } else if(mapChannelIds[msg.channel.id]) {
     msg.delete();
 

@@ -24,6 +24,9 @@ export default {
       byChannelAndUser: 'SELECT * FROM Locations WHERE channelId = ? AND userId = ?'
     },
     update: 'UPDATE Locations SET latitude = ?, longitude = ? WHERE channelId = ? AND userId = ?',
-    delete: 'DELETE FROM Locations WHERE channelId = ?'
+    delete: {
+      all: 'DELETE FROM Locations WHERE channelId = ?',
+      one: 'DELETE FROM Locations WHERE channelId = ? AND userId = ?'
+    }
   }
 };
